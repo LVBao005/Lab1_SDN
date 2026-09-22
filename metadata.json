@@ -1,0 +1,6 @@
+{
+  "name": "Task & Team Management",
+  "description": "A task and team management application with Next.js App Router, Prisma ORM, PostgreSQL Supabase integration, task filtering, and responsive UI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
