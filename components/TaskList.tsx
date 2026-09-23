@@ -13,7 +13,7 @@ import {
   Filter,
   Check
 } from 'lucide-react';
-import { TaskItem, TaskPriority, TaskStatus } from '@/src/types';
+import { TaskItem, TaskPriority, TaskStatus } from '@/types';
 
 interface TaskListProps {
   tasks: TaskItem[];

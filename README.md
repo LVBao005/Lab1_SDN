@@ -20,16 +20,19 @@
 ```text
 ├── app/
 │   ├── api/
-│   │   └── tasks/
-│   │       ├── route.ts          # GET /api/tasks (lọc status), POST /api/tasks
-│   │       └── [id]/
-│   │           └── route.ts      # PUT /api/tasks/[id], DELETE /api/tasks/[id]
+│   │   ├── tasks/
+│   │   │   ├── route.ts          # GET /api/tasks (lọc status), POST /api/tasks
+│   │   │   └── [id]/
+│   │   │       └── route.ts      # PUT /api/tasks/[id], DELETE /api/tasks/[id]
+│   │   └── db-status/
+│   │       └── route.ts          # GET /api/db-status (kiểm tra kết nối Supabase)
 │   ├── teams/
 │   │   └── page.tsx              # Trang placeholder "Teams (Coming soon)"
 │   ├── login/
 │   │   └── page.tsx              # Trang Đăng nhập tài khoản demo
+│   ├── globals.css               # Cấu hình Tailwind CSS (@import "tailwindcss")
 │   ├── layout.tsx                # Next.js Root Layout
-│   └── page.tsx                  # Trang chủ quản lý Task (Homepage)
+│   └── page.tsx                  # Trang chủ quản lý Task (App Router)
 ├── components/
 │   ├── Navbar.tsx                # Thanh điều hướng (Home, Teams, Login, DB status)
 │   ├── TaskForm.tsx              # Form tạo task mới với validation
@@ -37,18 +40,17 @@
 │   └── EditTaskModal.tsx         # Modal chỉnh sửa task
 ├── lib/
 │   └── prisma.ts                 # Khởi tạo Prisma Client an toàn (Singleton)
+├── types/
+│   ├── task.ts                   # Khai báo TypeScript Interfaces & Enums
+│   └── index.ts                  # Export các định nghĩa types
 ├── prisma/
-│   └── schema.prisma             # Định nghĩa Models: User, Team, TeamMember, Task
-├── src/
-│   ├── types.ts                  # Khai báo TypeScript Interfaces & Enums
-│   ├── App.tsx                   # Giao diện chính tích hợp Live Preview
-│   └── index.css                 # Cấu hình Tailwind CSS
-├── server.ts                     # Full-stack API & Development Server
-├── .env.example                  # Mẫu biến môi trường
-├── .env                          # Biến môi trường cục bộ
-├── .eslintrc.json                # Cấu hình kiểm tra lỗi mã nguồn (ESLint)
-├── .prettierrc                   # Cấu hình định dạng code (Prettier)
-├── package.json
+│   ├── schema.prisma             # Định nghĩa Models: User, Team, TeamMember, Task
+│   └── seed.ts                   # Dữ liệu khởi tạo mẫu lên PostgreSQL Supabase
+├── postcss.config.mjs            # Cấu hình PostCSS với @tailwindcss/postcss
+├── tsconfig.json                 # Cấu hình TypeScript cho Next.js App Router
+├── .env.example                  # Mẫu biến môi trường an toàn (không chứa secret)
+├── .env                          # Biến môi trường cục bộ (đã bị chặn bởi .gitignore)
+├── package.json                  # Cấu hình scripts chuẩn Next.js (dev, build, start)
 └── README.md
 ```
 

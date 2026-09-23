@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import TaskForm from '@/components/TaskForm';
 import TaskList from '@/components/TaskList';
 import EditTaskModal from '@/components/EditTaskModal';
-import { TaskItem, TaskStatus } from '@/src/types';
+import { TaskItem, TaskStatus } from '@/types';
 import { CheckCircle2, Clock, ListTodo, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function HomePage() {

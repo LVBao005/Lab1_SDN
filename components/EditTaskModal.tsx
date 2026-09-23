@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Loader2, AlertCircle } from 'lucide-react';
-import { TaskItem, TaskPriority, TaskStatus, UpdateTaskPayload } from '@/src/types';
+import { TaskItem, TaskPriority, TaskStatus, UpdateTaskPayload } from '@/types';
 
 interface EditTaskModalProps {
   task: TaskItem | null;

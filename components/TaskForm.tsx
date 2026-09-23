@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Plus, AlertCircle, Loader2 } from 'lucide-react';
-import { CreateTaskPayload, TaskPriority, TaskStatus } from '@/src/types';
+import { CreateTaskPayload, TaskPriority, TaskStatus } from '@/types';
 
 interface TaskFormProps {
   onTaskCreated: (newTask: any) => void;
