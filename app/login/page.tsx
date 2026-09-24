@@ -6,8 +6,8 @@ import Link from 'next/link';
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <main className="max-w-md mx-auto px-4 py-12 sm:px-6 lg:px-8">
+      <div>
         <Link
           href="/"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 mb-6"
@@ -27,7 +27,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-6">
         <div className="bg-white py-8 px-6 sm:px-10 shadow-xs rounded-2xl border border-zinc-200">
           <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
             <div>
@@ -79,6 +79,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

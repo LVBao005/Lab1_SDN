@@ -1,9 +1,11 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import './globals.css';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'Task & Team Management',
+  title: 'Task & Team Management | Assignment 1',
   description: 'Assignment 1 - Task & Team Management built with Next.js, Prisma, PostgreSQL (Supabase), and Tailwind CSS.',
 };
 
@@ -14,8 +16,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body className="min-h-screen bg-zinc-50 font-sans text-zinc-900 antialiased">
-        {children}
+      <body className="min-h-screen bg-zinc-50 font-sans text-zinc-900 antialiased flex flex-col justify-between">
+        <Navbar />
+        <div className="flex-1">
+          {children}
+        </div>
+        <Footer />
       </body>
     </html>
   );

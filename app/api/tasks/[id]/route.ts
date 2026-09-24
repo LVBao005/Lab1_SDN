@@ -4,12 +4,10 @@ import prisma from '@/lib/prisma';
 // PUT /api/tasks/[id] - Update task information
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> | { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Await params if Next.js 15 Promise pattern or resolve directly
-    const params = await Promise.resolve(context.params);
-    const { id } = params;
+    const { id } = await context.params;
 
     const body = await request.json();
     const { title, description, status, priority, dueDate, teamId, assigneeId } = body;
@@ -56,11 +54,10 @@ export async function PUT(
 // DELETE /api/tasks/[id] - Delete a task by ID
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> | { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const params = await Promise.resolve(context.params);
-    const { id } = params;
+    const { id } = await context.params;
 
     const existing = await prisma.task.findUnique({
       where: { id },
