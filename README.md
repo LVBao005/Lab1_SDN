@@ -56,9 +56,54 @@
 
 ---
 
-## 🗄️ 3. Cấu trúc Cơ sở dữ liệu (Database Schema)
+## 🗄️ 3. Sơ đồ Thực thể Quan hệ (ERD) & Cấu trúc Database
 
-Hệ thống sử dụng **PostgreSQL** kết hợp **Prisma ORM** với 4 model quan hệ:
+```mermaid
+erDiagram
+    User ||--o{ Team : "owns (1:N)"
+    User ||--o{ TeamMember : "has memberships (1:N)"
+    User ||--o{ Task : "assigned to (1:N)"
+    Team ||--o{ TeamMember : "includes (1:N)"
+    Team ||--o{ Task : "contains (1:N)"
+
+    User {
+        string id PK "cuid()"
+        string name "optional"
+        string email UK "unique"
+        string password
+        datetime createdAt
+    }
+
+    Team {
+        string id PK "cuid()"
+        string name
+        string description "optional"
+        string ownerId FK
+        datetime createdAt
+    }
+
+    TeamMember {
+        string id PK "cuid()"
+        string teamId FK
+        string userId FK
+        MemberRole role "OWNER | ADMIN | MEMBER"
+        datetime joinedAt
+    }
+
+    Task {
+        string id PK "cuid()"
+        string title
+        string description "optional"
+        TaskStatus status "TODO | IN_PROGRESS | DONE"
+        TaskPriority priority "LOW | MEDIUM | HIGH"
+        datetime dueDate "optional"
+        string teamId FK "optional"
+        string assigneeId FK "optional"
+        datetime createdAt
+    }
+```
+
+Hệ thống sử dụng **PostgreSQL** (Supabase) kết hợp **Prisma ORM** với 4 model quan hệ:
 
 ### 3.1. Model `User` (Người dùng)
 - `id` (String - CUID, Khóa chính)
@@ -132,13 +177,13 @@ DIRECT_URL="postgresql://postgres.[YOUR_PROJECT_REF]:[YOUR_PASSWORD]@aws-0-[REGI
 > - Tuyệt đối không commit file `.env` chứa mật khẩu thực tế lên GitHub (file `.gitignore` đã được cấu hình chặn file `.env`).
 
 ### Bước 3: Khởi tạo và Migrate Cơ sở dữ liệu
-Chạy các lệnh Prisma để sinh Prisma Client và đồng bộ schema lên PostgreSQL Supabase:
+Chạy các lệnh Prisma để sinh Prisma Client và khởi chạy migration lên PostgreSQL Supabase:
 ```bash
 # 1. Sinh Prisma Client
 npx prisma generate
 
-# 2. Đồng bộ cấu trúc bảng lên Supabase
-npx prisma db push
+# 2. Khởi tạo Migration đầu tiên (theo yêu cầu đề bài Assignment 1)
+npx prisma migrate dev --name init
 
 # 3. Nạp dữ liệu mẫu lên Supabase (User, Team, Tasks)
 npm run prisma:seed
