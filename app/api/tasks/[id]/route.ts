@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getAuthUser } from '@/lib/auth';
 
 // PUT /api/tasks/[id] - Update task information
 export async function PUT(
@@ -7,18 +8,47 @@ export async function PUT(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = await context.params;
+    const authUser = await getAuthUser(request);
+    if (!authUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please login to update tasks.' },
+        { status: 401 },
+      );
+    }
 
-    const body = await request.json();
-    const { title, description, status, priority, dueDate, teamId, assigneeId } = body;
+    const { id } = await context.params;
 
     const existing = await prisma.task.findUnique({
       where: { id },
+      include: {
+        team: {
+          include: {
+            members: {
+              where: { userId: authUser.id },
+            },
+          },
+        },
+      },
     });
 
     if (!existing) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
+
+    // If task belongs to a team, user must be a team member or team owner
+    if (existing.teamId && existing.team) {
+      const isOwner = existing.team.ownerId === authUser.id;
+      const isMember = isOwner || existing.team.members.length > 0;
+      if (!isMember) {
+        return NextResponse.json(
+          { error: 'Forbidden. You must be a member of the team to update this task.' },
+          { status: 403 },
+        );
+      }
+    }
+
+    const body = await request.json();
+    const { title, description, status, priority, dueDate, assigneeId } = body;
 
     const updatedTask = await prisma.task.update({
       where: { id },
@@ -28,7 +58,6 @@ export async function PUT(
         ...(status !== undefined && { status }),
         ...(priority !== undefined && { priority }),
         ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
-        ...(teamId !== undefined && { teamId: teamId || null }),
         ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),
       },
       include: {
@@ -36,6 +65,9 @@ export async function PUT(
           select: { id: true, name: true },
         },
         assignee: {
+          select: { id: true, name: true, email: true },
+        },
+        creator: {
           select: { id: true, name: true, email: true },
         },
       },
@@ -51,20 +83,49 @@ export async function PUT(
   }
 }
 
-// DELETE /api/tasks/[id] - Delete a task by ID
+// DELETE /api/tasks/[id] - Delete a task (Only creator, assignee, or team owner)
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const authUser = await getAuthUser(request);
+    if (!authUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please login to delete tasks.' },
+        { status: 401 },
+      );
+    }
+
     const { id } = await context.params;
 
     const existing = await prisma.task.findUnique({
       where: { id },
+      include: {
+        team: {
+          select: { ownerId: true },
+        },
+      },
     });
 
     if (!existing) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    // Role-based authorization:
+    // "Only the task creator, the assignee, or the team Owner can delete a task."
+    const isCreator = existing.creatorId === authUser.id;
+    const isAssignee = existing.assigneeId === authUser.id;
+    const isTeamOwner = existing.team?.ownerId === authUser.id;
+
+    if (!isCreator && !isAssignee && !isTeamOwner) {
+      return NextResponse.json(
+        {
+          error:
+            'Forbidden. Only the task creator, the assignee, or the team Owner can delete this task.',
+        },
+        { status: 403 },
+      );
     }
 
     await prisma.task.delete({
@@ -72,7 +133,7 @@ export async function DELETE(
     });
 
     return NextResponse.json(
-      { message: 'Task deleted successfully', id },
+      { message: 'Task deleted successfully' },
       { status: 200 },
     );
   } catch (error) {
