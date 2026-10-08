@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { LogIn, ArrowLeft, KeyRound, Mail, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { LogIn, ArrowLeft, KeyRound, Mail, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -35,18 +35,6 @@ export default function LoginPage() {
     }
   };
 
-  const fillGraderAccount = () => {
-    setEmail('grader@assignment2.edu.vn');
-    setPassword('Password123!');
-    setErrorMessage(null);
-  };
-
-  const fillMemberAccount = () => {
-    setEmail('member@assignment2.edu.vn');
-    setPassword('Password123!');
-    setErrorMessage(null);
-  };
-
   return (
     <main className="max-w-md mx-auto px-4 py-12 sm:px-6 lg:px-8">
       <div>
@@ -69,31 +57,6 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Quick Test Accounts Card for Grader */}
-      <div className="mt-6 p-4 rounded-xl bg-amber-50/80 border border-amber-200">
-        <div className="flex items-center gap-2 mb-2 text-amber-900 text-xs font-bold">
-          <Sparkles className="w-4 h-4 text-amber-600" />
-          <span>Tài khoản kiểm thử nhanh (Dành cho Chấm điểm)</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <button
-            type="button"
-            onClick={fillGraderAccount}
-            className="px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-medium hover:bg-amber-100 transition-colors text-left"
-          >
-            <div className="font-semibold">Grader (Owner)</div>
-            <div className="text-[10px] text-zinc-500">grader@assignment2.edu.vn</div>
-          </button>
-          <button
-            type="button"
-            onClick={fillMemberAccount}
-            className="px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-medium hover:bg-amber-100 transition-colors text-left"
-          >
-            <div className="font-semibold">Member (Thành viên)</div>
-            <div className="text-[10px] text-zinc-500">member@assignment2.edu.vn</div>
-          </button>
-        </div>
-      </div>
 
       <div className="mt-6">
         <div className="bg-white py-8 px-6 sm:px-10 shadow-xs rounded-2xl border border-zinc-200">

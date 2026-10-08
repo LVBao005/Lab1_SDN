@@ -10,7 +10,6 @@ import {
   ArrowRight,
   LogIn,
   UserPlus,
-  KeyRound,
   LayoutGrid,
   CheckCircle2,
   Clock,
@@ -202,39 +201,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Grader Test Account Box */}
-          <div className="max-w-2xl mx-auto bg-amber-50/80 rounded-2xl border border-amber-200 p-6 text-left shadow-xs">
-            <div className="flex items-center gap-2 text-amber-900 font-bold text-sm mb-3">
-              <KeyRound className="w-4 h-4 text-amber-600" />
-              <span>Thông tin Tài khoản Kiểm thử (Dành cho Chấm điểm Assignment 2)</span>
-            </div>
-            <p className="text-xs text-amber-800 mb-4">
-              Bạn có thể đăng nhập ngay bằng tài khoản đã được nạp sẵn vào cơ sở dữ liệu Supabase hoặc tự đăng ký tài khoản mới:
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="bg-white p-3 rounded-xl border border-amber-200">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
-                  Tài khoản Grader (Owner):
-                </span>
-                <p className="font-mono text-zinc-800 font-semibold mt-1">grader@assignment2.edu.vn</p>
-                <p className="text-zinc-500 mt-0.5">Mật khẩu: <span className="font-mono font-bold text-zinc-900">Password123!</span></p>
-              </div>
-
-              <div className="bg-white p-3 rounded-xl border border-amber-200">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
-                  Tài khoản Member (Thành viên):
-                </span>
-                <p className="font-mono text-zinc-800 font-semibold mt-1">member@assignment2.edu.vn</p>
-                <p className="text-zinc-500 mt-0.5">Mật khẩu: <span className="font-mono font-bold text-zinc-900">Password123!</span></p>
-              </div>
-            </div>
-            <div className="mt-4 pt-3 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-900">
-              <span>* Tài khoản đã xác thực sẵn, đăng nhập được ngay lập tức.</span>
-              <Link href="/login" className="font-bold underline hover:text-amber-950">
-                Đi tới trang Đăng nhập →
-              </Link>
-            </div>
-          </div>
 
           {/* Core Feature Pillars */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
