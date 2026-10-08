@@ -31,16 +31,17 @@ async function main() {
   });
   console.log('✅ User Grader đã tạo:', graderUser.name, `(${graderUser.email})`);
 
-  // 2. Tạo User sinh viên Lê Văn Bảo
+  // 2. Tạo User sinh viên (Student)
+  const studentEmail = process.env.STUDENT_EMAIL || 'student@example.com';
   const studentUser = await prisma.user.upsert({
-    where: { email: 'baole.tanquoc@gmail.com' },
+    where: { email: studentEmail },
     update: {
       password: defaultPasswordHash,
       name: 'Lê Văn Bảo',
     },
     create: {
       name: 'Lê Văn Bảo',
-      email: 'baole.tanquoc@gmail.com',
+      email: studentEmail,
       password: defaultPasswordHash,
     },
   });

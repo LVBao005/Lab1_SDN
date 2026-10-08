@@ -1067,7 +1067,7 @@ export default function TeamDetailPage({
                 <input
                   type="email"
                   required
-                  placeholder="Ví dụ: member@assignment2.edu.vn"
+                  placeholder="Ví dụ: member@example.com"
                   value={memberEmail}
                   onChange={(e) => setMemberEmail(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-lg border border-zinc-300 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-hidden"

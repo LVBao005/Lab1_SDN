@@ -30,7 +30,6 @@
    - **Kanban Board**: Phân cột trực quan theo 3 trạng thái công việc với nút thao tác chuyển đổi trạng thái nhanh.
    - **Chế độ xem linh hoạt**: Chuyển đổi mượt mà giữa chế độ Kanban Board và Bảng dữ liệu (Table View).
    - **Bộ lọc & Tìm kiếm Real-time**: Lọc công việc theo trạng thái, mức độ ưu tiên, người phụ trách và tìm kiếm theo từ khóa.
-   - **Tự động điền tài khoản test (1-Click Auto Fill)**: Nút tiện ích tại trang đăng nhập giúp người chấm bài đăng nhập ngay vào tài khoản Grader hoặc Member.
 
 ---
 
@@ -61,7 +60,7 @@
 │   │   └── db-status/
 │   │       └── route.ts                # GET /api/db-status (Kiểm tra kết nối Supabase)
 │   ├── login/
-│   │   └── page.tsx                    # Giao diện Đăng nhập kèm nút nạp tài khoản test
+│   │   └── page.tsx                    # Giao diện Đăng nhập tài khoản
 │   ├── register/
 │   │   └── page.tsx                    # Giao diện Đăng ký tài khoản người dùng
 │   ├── teams/
@@ -210,21 +209,7 @@ Truy cập hệ thống tại: [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🔑 6. Tài khoản Kiểm thử Khởi tạo Sẵn (Test Accounts)
-
-Hệ thống đã chuẩn bị sẵn các tài khoản kiểm thử thông qua lệnh seed:
-
-| Vai trò | Email đăng nhập | Mật khẩu mặc định | Ghi chú quyền hạn |
-| :--- | :--- | :--- | :--- |
-| **Grader (Chủ sở hữu)** | `grader@assignment2.edu.vn` | `Password123!` | Sở hữu 2 nhóm: *Core Engineering* và *Product & Design*, toàn quyền quản trị và xóa task. |
-| **Member (Thành viên)** | `member@assignment2.edu.vn` | `Password123!` | Là thành viên của nhóm, có quyền tạo task, sửa task, nhưng không được xóa task của người khác hay quản lý nhóm. |
-| **Sinh viên** | `baole.tanquoc@gmail.com` | `Password123!` | Tài khoản sinh viên phát triển. |
-
-*(Người chấm cũng có thể bấm vào nút **"Đăng ký tài khoản mới"** để tự tạo tài khoản cá nhân và trải nghiệm đầy đủ mà không cần xác nhận qua email).*
-
----
-
-## 🛡️ 7. Kiểm định & Đánh giá Tiêu chuẩn (Self-Assessment Checklist)
+## 🛡️ 6. Kiểm định & Đánh giá Tiêu chuẩn (Self-Assessment Checklist)
 
 - [x] **Xác thực JWT nội bộ an toàn**: Lưu HttpOnly Cookie, bảo vệ các route `/teams` và `/teams/[id]`.
 - [x] **Mô hình Dữ liệu Đầy đủ**: Quan hệ 4 bảng `User`, `Team`, `TeamMember`, `Task` với các ràng buộc khóa ngoại và Cascade delete.
