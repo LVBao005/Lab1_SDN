@@ -42,3 +42,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# submission files (tài liệu bài nộp cá nhân)
+QE180206_Ass2.*
+*_Ass2.*
+*.docx
+*.doc
