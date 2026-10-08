@@ -3,10 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CheckSquare, Users, LogIn, Menu, X, Database } from 'lucide-react';
+import {
+  CheckSquare,
+  Users,
+  LogIn,
+  LogOut,
+  UserPlus,
+  Menu,
+  X,
+  Database,
+  User as UserIcon,
+  FolderKanban,
+} from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 export function Navbar() {
   const pathname = usePathname();
+  const { user, logout, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
 
@@ -18,10 +31,10 @@ export function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-200 bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-200 bg-white/95 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo & App Brand */}
+          {/* Logo & Brand */}
           <div className="flex items-center gap-3">
             <Link
               id="nav-brand-btn"
@@ -33,17 +46,17 @@ export function Navbar() {
               </div>
               <div>
                 <span className="font-semibold text-zinc-900 text-base tracking-tight block">
-                  Task & Team
+                  TaskFlow
                 </span>
                 <span className="text-[11px] text-zinc-500 font-medium block leading-none">
-                  Assignment 1 · Supabase & Prisma
+                  Assignment 2 · Teams &amp; RBAC
                 </span>
               </div>
             </Link>
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1.5">
             <Link
               id="nav-link-home"
               href="/"
@@ -53,27 +66,26 @@ export function Navbar() {
                   : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
               }`}
             >
-              Home
+              Trang chủ
             </Link>
 
-            <Link
-              id="nav-link-teams"
-              href="/teams"
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                pathname === '/teams'
-                  ? 'bg-zinc-100 text-zinc-900 font-semibold'
-                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
-              }`}
-            >
-              <Users className="w-4 h-4 text-zinc-400" />
-              <span>Teams</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 ml-1">
-                Coming soon
-              </span>
-            </Link>
+            {user && (
+              <Link
+                id="nav-link-teams"
+                href="/teams"
+                className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  pathname.startsWith('/teams')
+                    ? 'bg-zinc-100 text-zinc-900 font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
+                }`}
+              >
+                <Users className="w-4 h-4 text-emerald-600" />
+                <span>Đội nhóm (Teams)</span>
+              </Link>
+            )}
           </nav>
 
-          {/* Right Side: DB indicator & Login */}
+          {/* Right Side: DB status & User Profile / Auth buttons */}
           <div className="hidden md:flex items-center gap-3">
             <div
               id="navbar-db-status"
@@ -92,27 +104,74 @@ export function Navbar() {
                   : 'Đang kiểm tra kết nối...'
               }
             >
-              <Database className={`w-3.5 h-3.5 ${dbConnected === true ? 'text-emerald-600' : 'text-zinc-400'}`} />
+              <Database
+                className={`w-3.5 h-3.5 ${
+                  dbConnected === true ? 'text-emerald-600' : 'text-zinc-400'
+                }`}
+              />
               <span>
                 {dbConnected === true
                   ? 'PostgreSQL Active'
                   : dbConnected === false
                   ? 'DB Offline'
-                  : 'Supabase Checking'}
+                  : 'Checking DB'}
               </span>
             </div>
 
-            <Link
-              id="nav-btn-login"
-              href="/login"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-xs"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Login</span>
-            </Link>
+            {!loading && (
+              <>
+                {user ? (
+                  <div className="flex items-center gap-3 pl-2 border-l border-zinc-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-800 text-xs font-bold uppercase">
+                        {user.name ? user.name[0] : user.email[0]}
+                      </div>
+                      <div className="text-left hidden lg:block">
+                        <p className="text-xs font-semibold text-zinc-900 leading-tight">
+                          {user.name || 'Người dùng'}
+                        </p>
+                        <p className="text-[11px] text-zinc-500 leading-tight truncate max-w-[120px]">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      id="navbar-logout-btn"
+                      onClick={() => logout()}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-600 hover:text-red-600 hover:bg-red-50 transition-colors border border-zinc-200"
+                      title="Đăng xuất"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Đăng xuất</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Link
+                      id="nav-btn-register"
+                      href="/register"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
+                    >
+                      <UserPlus className="w-4 h-4 text-zinc-500" />
+                      <span>Đăng ký</span>
+                    </Link>
+
+                    <Link
+                      id="nav-btn-login"
+                      href="/login"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-xs"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      <span>Đăng nhập</span>
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Mobile Menu Toggle */}
+          {/* Mobile Menu Button */}
           <div className="flex md:hidden items-center gap-2">
             <button
               id="mobile-menu-toggle-btn"
@@ -127,7 +186,7 @@ export function Navbar() {
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-3 border-t border-zinc-100 space-y-1">
+          <div className="md:hidden py-3 border-t border-zinc-100 space-y-2">
             <Link
               id="mobile-nav-link-home"
               href="/"
@@ -136,34 +195,63 @@ export function Navbar() {
                 pathname === '/' ? 'bg-zinc-100 text-zinc-900 font-semibold' : 'text-zinc-600'
               }`}
             >
-              Home
+              Trang chủ
             </Link>
-            <Link
-              id="mobile-nav-link-teams"
-              href="/teams"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium ${
-                pathname === '/teams' ? 'bg-zinc-100 text-zinc-900 font-semibold' : 'text-zinc-600'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-zinc-400" />
-                <span>Teams</span>
-              </div>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                Coming soon
-              </span>
-            </Link>
-            <div className="pt-2">
+
+            {user && (
               <Link
-                id="mobile-nav-btn-login"
-                href="/login"
+                id="mobile-nav-link-teams"
+                href="/teams"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-800"
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                  pathname.startsWith('/teams')
+                    ? 'bg-zinc-100 text-zinc-900 font-semibold'
+                    : 'text-zinc-600'
+                }`}
               >
-                <LogIn className="w-4 h-4" />
-                <span>Login</span>
+                <Users className="w-4 h-4" />
+                <span>Đội nhóm (Teams)</span>
               </Link>
+            )}
+
+            <div className="pt-2 border-t border-zinc-100">
+              {user ? (
+                <div className="space-y-2">
+                  <div className="px-3 py-2 bg-zinc-50 rounded-lg">
+                    <p className="text-xs font-semibold text-zinc-900">{user.name}</p>
+                    <p className="text-xs text-zinc-500">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-zinc-300 text-zinc-700"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Đăng ký</span>
+                  </Link>
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-zinc-900 text-white"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Đăng nhập</span>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}

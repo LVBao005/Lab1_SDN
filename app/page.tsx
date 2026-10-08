@@ -1,247 +1,275 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import TaskForm from '@/components/TaskForm';
-import TaskList from '@/components/TaskList';
-import EditTaskModal from '@/components/EditTaskModal';
-import { TaskItem, TaskStatus } from '@/types';
-import { CheckCircle2, Clock, ListTodo, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import {
+  Users,
+  CheckSquare,
+  ShieldCheck,
+  Sparkles,
+  ArrowRight,
+  LogIn,
+  UserPlus,
+  KeyRound,
+  LayoutGrid,
+  CheckCircle2,
+  Clock,
+  Crown,
+  FolderKanban,
+  Database,
+} from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 export default function HomePage() {
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<string>('ALL');
-  const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState<{
-    type: 'success' | 'error' | 'info';
-    text: string;
-  } | null>(null);
-
-  // Fetch tasks from API
-  const fetchTasks = useCallback(async (filter = activeFilter) => {
-    setIsLoading(true);
-    try {
-      const url = filter && filter !== 'ALL' ? `/api/tasks?status=${filter}` : '/api/tasks';
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      const data = await res.json();
-      setTasks(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      console.error('Error loading tasks:', err);
-      setFeedbackMessage({
-        type: 'error',
-        text: 'Không thể tải danh sách công việc từ cơ sở dữ liệu. Vui lòng kiểm tra DATABASE_URL.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeFilter]);
+  const { user, loading } = useAuth();
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
-
-  // Handle filter change
-  const handleFilterChange = (filter: string) => {
-    setActiveFilter(filter);
-  };
-
-  // Callback when a task is created
-  const handleTaskCreated = (newTask: TaskItem) => {
-    // Real-time state update without manual page reload
-    setTasks((prev) => [newTask, ...prev]);
-    setFeedbackMessage({
-      type: 'success',
-      text: `Đã tạo công việc "${newTask.title}" thành công!`,
-    });
-    setTimeout(() => setFeedbackMessage(null), 4000);
-  };
-
-  // Open edit modal
-  const handleEditTask = (task: TaskItem) => {
-    setEditingTask(task);
-    setIsEditModalOpen(true);
-  };
-
-  // Callback when task is updated
-  const handleTaskUpdated = (updatedTask: TaskItem) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)),
-    );
-    setFeedbackMessage({
-      type: 'success',
-      text: `Đã cập nhật công việc "${updatedTask.title}" thành công!`,
-    });
-    setTimeout(() => setFeedbackMessage(null), 4000);
-  };
-
-  // Callback when task is deleted
-  const handleDeleteTask = async (taskId: string) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to delete task');
-      }
-
-      // Real-time state update without manual page reload
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-      setFeedbackMessage({
-        type: 'info',
-        text: 'Đã xóa công việc thành công.',
-      });
-      setTimeout(() => setFeedbackMessage(null), 3500);
-    } catch (err: any) {
-      console.error('Error deleting task:', err);
-      alert(`Lỗi khi xóa task: ${err.message}`);
+    if (user) {
+      setLoadingTeams(true);
+      fetch('/api/teams')
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => setTeams(Array.isArray(data) ? data : []))
+        .catch((err) => console.error(err))
+        .finally(() => setLoadingTeams(false));
     }
-  };
-
-  // Quick toggle status directly from list
-  const handleStatusToggle = async (taskId: string, newStatus: TaskStatus) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error('Failed to update status');
-      const updated = await res.json();
-
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? updated : t)),
-      );
-    } catch (err: any) {
-      console.error('Status toggle failed:', err);
-    }
-  };
-
-  // Filter tasks in UI if server returned all
-  const displayedTasks = activeFilter === 'ALL'
-    ? tasks
-    : tasks.filter((t) => t.status === activeFilter);
-
-  // Statistics
-  const totalCount = tasks.length;
-  const todoCount = tasks.filter((t) => t.status === 'TODO').length;
-  const inProgressCount = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
-  const doneCount = tasks.filter((t) => t.status === 'DONE').length;
+  }, [user]);
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-      {/* Feedback alert toast */}
-      {feedbackMessage && (
-        <div
-          id="action-feedback-toast"
-          className={`p-3.5 rounded-xl border text-xs font-medium flex items-center justify-between transition-all duration-200 animate-in fade-in slide-in-from-top-2 ${
-            feedbackMessage.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : feedbackMessage.type === 'error'
-              ? 'bg-red-50 border-red-200 text-red-800'
-              : 'bg-zinc-100 border-zinc-200 text-zinc-800'
-          }`}
-        >
-          <span>{feedbackMessage.text}</span>
-          <button
-            onClick={() => setFeedbackMessage(null)}
-            className="text-zinc-500 hover:text-zinc-800 text-xs ml-2"
-          >
-            ✕
-          </button>
+    <main className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+      {/* If Authenticated: Dashboard View */}
+      {user ? (
+        <div className="space-y-8">
+          {/* Welcome Banner */}
+          <div className="bg-white rounded-3xl border border-zinc-200 p-8 sm:p-10 shadow-xs relative overflow-hidden">
+            <div className="absolute top-0 right-0 -mt-6 -mr-6 w-56 h-56 bg-emerald-50 rounded-full blur-2xl opacity-60 pointer-events-none"></div>
+
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 mb-3">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Xin chào, {user.name || user.email}!</span>
+                </div>
+                <h1 className="text-2xl sm:text-4xl font-extrabold text-zinc-900 tracking-tight">
+                  Không gian Làm việc &amp; Đội nhóm
+                </h1>
+                <p className="text-zinc-600 text-sm sm:text-base mt-2 max-w-xl">
+                  Chào mừng bạn quay trở lại. Hãy lựa chọn nhóm làm việc bên dưới để phân công nhiệm vụ, cập nhật trạng thái trên Kanban board và quản lý thành viên.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  id="home-go-teams-btn"
+                  href="/teams"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 transition-colors shadow-xs shadow-emerald-200"
+                >
+                  <FolderKanban className="w-4 h-4" />
+                  <span>Quản lý Tất cả Đội nhóm</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-8 pt-8 border-t border-zinc-100">
+              <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80">
+                <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium mb-1">
+                  <Users className="w-4 h-4 text-emerald-600" />
+                  <span>Số nhóm tham gia</span>
+                </div>
+                <div className="text-2xl font-bold text-zinc-900">{teams.length}</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80">
+                <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium mb-1">
+                  <Crown className="w-4 h-4 text-amber-600" />
+                  <span>Nhóm bạn sở hữu</span>
+                </div>
+                <div className="text-2xl font-bold text-zinc-900">
+                  {teams.filter((t) => t.ownerId === user.id).length}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 col-span-2 sm:col-span-1">
+                <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium mb-1">
+                  <CheckSquare className="w-4 h-4 text-blue-600" />
+                  <span>Tổng số công việc</span>
+                </div>
+                <div className="text-2xl font-bold text-zinc-900">
+                  {teams.reduce((acc, t) => acc + (t._count?.tasks || 0), 0)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Team Access */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-zinc-900">Đội nhóm của bạn</h2>
+              <Link href="/teams" className="text-xs font-semibold text-emerald-600 hover:underline">
+                Xem toàn bộ →
+              </Link>
+            </div>
+
+            {loadingTeams ? (
+              <div className="py-12 text-center text-xs text-zinc-400">Đang tải danh sách nhóm...</div>
+            ) : teams.length === 0 ? (
+              <div className="p-8 bg-white rounded-2xl border border-zinc-200 text-center">
+                <p className="text-xs text-zinc-500 mb-3">Bạn chưa tham gia nhóm nào.</p>
+                <Link
+                  href="/teams"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium"
+                >
+                  <span>Tạo nhóm ngay</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {teams.slice(0, 3).map((team) => (
+                  <Link
+                    key={team.id}
+                    href={`/teams/${team.id}`}
+                    className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-xs hover:border-emerald-300 hover:shadow-md transition-all group block"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-100 group-hover:bg-emerald-50 group-hover:text-emerald-700 flex items-center justify-center text-zinc-700 transition-colors">
+                        <FolderKanban className="w-5 h-5" />
+                      </div>
+                      {team.ownerId === user.id ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                          Owner
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700">
+                          Member
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-base font-bold text-zinc-900 group-hover:text-emerald-700 transition-colors">
+                      {team.name}
+                    </h3>
+                    <p className="text-xs text-zinc-500 mt-1 line-clamp-2 min-h-[32px]">
+                      {team.description || 'Chưa có mô tả cho nhóm này.'}
+                    </p>
+                    <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
+                      <span>{team._count?.members || 1} thành viên</span>
+                      <span>{team._count?.tasks || 0} công việc</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* If Not Authenticated: Landing & Overview */
+        <div className="space-y-12">
+          {/* Hero Section */}
+          <div className="text-center max-w-3xl mx-auto py-12 sm:py-16">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 mb-6 shadow-2xs">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Assignment 2 · CRUD API &amp; Authentication</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-zinc-900 tracking-tight leading-tight">
+              Quản lý Công việc &amp; Đội nhóm Chuyên nghiệp
+            </h1>
+
+            <p className="mt-4 text-base sm:text-lg text-zinc-600 leading-relaxed">
+              Ứng dụng kết nối PostgreSQL qua Prisma ORM, tích hợp xác thực JWT bảo mật, phân quyền theo vai trò (Owner / Member / Assignee / Creator) và giao diện Kanban Board trực quan.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                id="hero-login-btn"
+                href="/login"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-zinc-900 text-white font-semibold text-sm hover:bg-zinc-800 transition-colors shadow-sm"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Đăng nhập hệ thống</span>
+              </Link>
+
+              <Link
+                id="hero-register-btn"
+                href="/register"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Đăng ký tài khoản mới</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Grader Test Account Box */}
+          <div className="max-w-2xl mx-auto bg-amber-50/80 rounded-2xl border border-amber-200 p-6 text-left shadow-xs">
+            <div className="flex items-center gap-2 text-amber-900 font-bold text-sm mb-3">
+              <KeyRound className="w-4 h-4 text-amber-600" />
+              <span>Thông tin Tài khoản Kiểm thử (Dành cho Chấm điểm Assignment 2)</span>
+            </div>
+            <p className="text-xs text-amber-800 mb-4">
+              Bạn có thể đăng nhập ngay bằng tài khoản đã được nạp sẵn vào cơ sở dữ liệu Supabase hoặc tự đăng ký tài khoản mới:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="bg-white p-3 rounded-xl border border-amber-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
+                  Tài khoản Grader (Owner):
+                </span>
+                <p className="font-mono text-zinc-800 font-semibold mt-1">grader@assignment2.edu.vn</p>
+                <p className="text-zinc-500 mt-0.5">Mật khẩu: <span className="font-mono font-bold text-zinc-900">Password123!</span></p>
+              </div>
+
+              <div className="bg-white p-3 rounded-xl border border-amber-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
+                  Tài khoản Member (Thành viên):
+                </span>
+                <p className="font-mono text-zinc-800 font-semibold mt-1">member@assignment2.edu.vn</p>
+                <p className="text-zinc-500 mt-0.5">Mật khẩu: <span className="font-mono font-bold text-zinc-900">Password123!</span></p>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-900">
+              <span>* Tài khoản đã xác thực sẵn, đăng nhập được ngay lập tức.</span>
+              <Link href="/login" className="font-bold underline hover:text-amber-950">
+                Đi tới trang Đăng nhập →
+              </Link>
+            </div>
+          </div>
+
+          {/* Core Feature Pillars */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+            <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-zinc-900 mb-2">Xác thực &amp; Phân quyền (RBAC)</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Quản lý quyền truy cập nghiêm ngặt: Chỉ Owner mới có thể chỉnh sửa/xóa team và thêm thành viên; chỉ Creator, Assignee hoặc Owner mới có quyền xóa task.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+                <Users className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-zinc-900 mb-2">Đội nhóm Linh hoạt (Teams)</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Người dùng có thể tham gia nhiều nhóm, chuyển đổi không gian làm việc tức thì, thêm thành viên nhanh chóng thông qua địa chỉ email.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs">
+              <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4">
+                <LayoutGrid className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-zinc-900 mb-2">Kanban Board &amp; Bộ lọc</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Chuyển đổi linh hoạt giữa giao diện bảng (Table) và bảng Kanban (To Do, In Progress, Done). Hỗ trợ tìm kiếm và lọc theo trạng thái, độ ưu tiên, người làm.
+              </p>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* Top Heading & Refresh */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">
-            Quản lý công việc (Task Management)
-          </h1>
-          <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
-            Dự án Assignment 1 · Next.js App Router, Prisma ORM &amp; PostgreSQL Supabase
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            id="refresh-tasks-btn"
-            onClick={() => fetchTasks(activeFilter)}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors shadow-2xs"
-            title="Tải lại danh sách"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-emerald-600' : 'text-zinc-500'}`} />
-            <span>Làm mới</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Quick Metrics Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-3.5 rounded-xl border border-zinc-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500">Tổng số task</span>
-            <ListTodo className="w-4 h-4 text-zinc-400" />
-          </div>
-          <p className="text-xl font-bold text-zinc-900 mt-1">{totalCount}</p>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-zinc-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500">To Do</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-zinc-400" />
-          </div>
-          <p className="text-xl font-bold text-zinc-700 mt-1">{todoCount}</p>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-zinc-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500">In Progress</span>
-            <Clock className="w-4 h-4 text-blue-500" />
-          </div>
-          <p className="text-xl font-bold text-blue-600 mt-1">{inProgressCount}</p>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-zinc-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-zinc-500">Hoàn thành</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="text-xl font-bold text-emerald-600 mt-1">{doneCount}</p>
-        </div>
-      </div>
-
-      {/* Form Create Task Section */}
-      <TaskForm onTaskCreated={handleTaskCreated} />
-
-      {/* Task List Section with Filter and Actions */}
-      <TaskList
-        tasks={displayedTasks}
-        isLoading={isLoading}
-        activeFilter={activeFilter}
-        onFilterChange={handleFilterChange}
-        onEditTask={handleEditTask}
-        onDeleteTask={handleDeleteTask}
-        onStatusToggle={handleStatusToggle}
-      />
-
-      {/* Edit Task Modal */}
-      <EditTaskModal
-        task={editingTask}
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingTask(null);
-        }}
-        onTaskUpdated={handleTaskUpdated}
-      />
     </main>
   );
 }

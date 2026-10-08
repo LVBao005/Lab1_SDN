@@ -1,50 +1,51 @@
 'use client';
 
 import React, { useState } from 'react';
-import { LogIn, ArrowLeft, KeyRound, Mail, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { UserPlus, ArrowLeft, KeyRound, Mail, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { register } = useAuth();
 
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (password.length < 6) {
+      setErrorMessage('Mật khẩu phải chứa ít nhất 6 ký tự.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await register(name, email, password);
       if (result.success) {
         router.push('/teams');
         router.refresh();
       } else {
-        setErrorMessage(result.error || 'Đăng nhập không thành công');
+        setErrorMessage(result.error || 'Đăng ký không thành công.');
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Lỗi hệ thống');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fillGraderAccount = () => {
-    setEmail('grader@assignment2.edu.vn');
-    setPassword('Password123!');
-    setErrorMessage(null);
-  };
-
-  const fillMemberAccount = () => {
-    setEmail('member@assignment2.edu.vn');
-    setPassword('Password123!');
-    setErrorMessage(null);
   };
 
   return (
@@ -58,41 +59,15 @@ export default function LoginPage() {
           <span>Quay về trang chủ</span>
         </Link>
 
-        <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center text-white mx-auto shadow-sm">
-          <LogIn className="w-6 h-6" />
+        <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white mx-auto shadow-sm shadow-emerald-200">
+          <UserPlus className="w-6 h-6" />
         </div>
         <h2 className="mt-4 text-center text-2xl font-bold tracking-tight text-zinc-900">
-          Đăng nhập tài khoản
+          Đăng ký tài khoản
         </h2>
         <p className="mt-1 text-center text-xs text-zinc-500">
-          Hệ thống Quản lý Công việc &amp; Đội nhóm · Assignment 2
+          Tạo tài khoản để tham gia quản lý nhóm và công việc
         </p>
-      </div>
-
-      {/* Quick Test Accounts Card for Grader */}
-      <div className="mt-6 p-4 rounded-xl bg-amber-50/80 border border-amber-200">
-        <div className="flex items-center gap-2 mb-2 text-amber-900 text-xs font-bold">
-          <Sparkles className="w-4 h-4 text-amber-600" />
-          <span>Tài khoản kiểm thử nhanh (Dành cho Chấm điểm)</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <button
-            type="button"
-            onClick={fillGraderAccount}
-            className="px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-medium hover:bg-amber-100 transition-colors text-left"
-          >
-            <div className="font-semibold">Grader (Owner)</div>
-            <div className="text-[10px] text-zinc-500">grader@assignment2.edu.vn</div>
-          </button>
-          <button
-            type="button"
-            onClick={fillMemberAccount}
-            className="px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-900 font-medium hover:bg-amber-100 transition-colors text-left"
-          >
-            <div className="font-semibold">Member (Thành viên)</div>
-            <div className="text-[10px] text-zinc-500">member@assignment2.edu.vn</div>
-          </button>
-        </div>
       </div>
 
       <div className="mt-6">
@@ -105,6 +80,25 @@ export default function LoginPage() {
           )}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                Họ và tên
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+                  <User className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ví dụ: Nguyễn Văn A"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-lg border border-zinc-300 text-sm text-zinc-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-hidden"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-zinc-700 mb-1">
                 Email
@@ -126,7 +120,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                Mật khẩu
+                Mật khẩu (tối thiểu 6 ký tự)
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
@@ -143,30 +137,49 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                Xác nhận mật khẩu
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-lg border border-zinc-300 text-sm text-zinc-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-hidden"
+                />
+              </div>
+            </div>
+
             <button
-              id="login-submit-btn"
+              id="register-submit-btn"
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 py-2.5 px-4 rounded-lg bg-zinc-900 text-white font-medium text-sm hover:bg-zinc-800 transition-colors shadow-xs flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full mt-2 py-2.5 px-4 rounded-lg bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 transition-colors shadow-xs flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isLoading ? (
-                <span>Đang đăng nhập...</span>
+                <span>Đang xử lý...</span>
               ) : (
                 <>
-                  <LogIn className="w-4 h-4" />
-                  <span>Đăng nhập</span>
+                  <UserPlus className="w-4 h-4" />
+                  <span>Tạo tài khoản</span>
                 </>
               )}
             </button>
           </form>
 
           <div className="mt-6 text-center text-xs text-zinc-500">
-            Chưa có tài khoản?{' '}
+            Đã có tài khoản?{' '}
             <Link
-              href="/register"
-              className="font-semibold text-emerald-600 hover:text-emerald-700 underline"
+              href="/login"
+              className="font-semibold text-zinc-900 hover:underline"
             >
-              Đăng ký ngay
+              Đăng nhập ngay
             </Link>
           </div>
         </div>
