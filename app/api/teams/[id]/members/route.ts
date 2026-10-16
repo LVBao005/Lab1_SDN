@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
+import { createNotification } from '@/lib/notifications';
 
-// POST /api/teams/:id/members - Add a member to a team by email (Owner only)
+// POST /api/teams/:id/members - Add a member to a team by email (Owner or Admin)
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -19,16 +20,25 @@ export async function POST(
     const { id: teamId } = await context.params;
     const team = await prisma.team.findUnique({
       where: { id: teamId },
+      include: {
+        members: {
+          where: { userId: authUser.id },
+        },
+      },
     });
 
     if (!team) {
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
 
-    // Only owner can add members
-    if (team.ownerId !== authUser.id) {
+    const isOwner = team.ownerId === authUser.id;
+    const callerMembership = team.members[0];
+    const isAdmin = callerMembership?.role === 'ADMIN';
+
+    // Only owner or admin can add members
+    if (!isOwner && !isAdmin) {
       return NextResponse.json(
-        { error: 'Forbidden. Only the team Owner can add new members.' },
+        { error: 'Forbidden. Only team Owner or Admin can add new members.' },
         { status: 403 },
       );
     }
@@ -71,7 +81,7 @@ export async function POST(
       );
     }
 
-    const memberRole = role === 'OWNER' ? 'OWNER' : 'MEMBER';
+    const memberRole = role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
 
     const newMember = await prisma.teamMember.create({
       data: {
@@ -86,6 +96,15 @@ export async function POST(
       },
     });
 
+    // Send in-app notification to the newly added member
+    await createNotification({
+      userId: targetUser.id,
+      title: 'Được thêm vào nhóm mới',
+      content: `Bạn đã được thêm vào nhóm "${team.name}" với vai trò ${memberRole}.`,
+      type: 'TEAM_INVITED',
+      link: `/teams/${teamId}`,
+    });
+
     return NextResponse.json(newMember, { status: 201 });
   } catch (error) {
     console.error('Error adding team member:', error);
@@ -95,3 +114,4 @@ export async function POST(
     );
   }
 }
+

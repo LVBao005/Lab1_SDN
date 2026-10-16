@@ -13,10 +13,13 @@ async function checkTeamAccess(teamId: string, userId: string) {
     },
   });
 
-  if (!team) return { team: null, isMember: false, isOwner: false };
+  if (!team) return { team: null, isMember: false, isOwner: false, isAdmin: false, role: null };
   const isOwner = team.ownerId === userId;
-  const isMember = isOwner || team.members.length > 0;
-  return { team, isMember, isOwner };
+  const member = team.members[0];
+  const isMember = isOwner || Boolean(member);
+  const isAdmin = isOwner || member?.role === 'ADMIN';
+  const role = isOwner ? 'OWNER' : member ? member.role : null;
+  return { team, isMember, isOwner, isAdmin, role };
 }
 
 // GET /api/teams/:id - Get team details, including members and tasks
@@ -85,7 +88,7 @@ export async function GET(
   }
 }
 
-// PUT /api/teams/:id - Update team info (Owner only)
+// PUT /api/teams/:id - Update team info (Owner or Admin)
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -100,15 +103,15 @@ export async function PUT(
     }
 
     const { id } = await context.params;
-    const { team, isOwner } = await checkTeamAccess(id, user.id);
+    const { team, isOwner, isAdmin } = await checkTeamAccess(id, user.id);
 
     if (!team) {
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
 
-    if (!isOwner) {
+    if (!isOwner && !isAdmin) {
       return NextResponse.json(
-        { error: 'Forbidden. Only the team Owner can update team details.' },
+        { error: 'Forbidden. Only the team Owner or Admin can update team details.' },
         { status: 403 },
       );
     }

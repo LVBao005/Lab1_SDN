@@ -169,15 +169,15 @@ export default function HomePage() {
           <div className="text-center max-w-3xl mx-auto py-12 sm:py-16">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 mb-6 shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Assignment 2 · CRUD API &amp; Authentication</span>
+              <span>Assignment 3 &amp; 4 · Real-time Collaboration &amp; RBAC</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-extrabold text-zinc-900 tracking-tight leading-tight">
-              Quản lý Công việc &amp; Đội nhóm Chuyên nghiệp
+              Quản lý Công việc &amp; Hợp tác Thời gian thực
             </h1>
 
             <p className="mt-4 text-base sm:text-lg text-zinc-600 leading-relaxed">
-              Ứng dụng kết nối PostgreSQL qua Prisma ORM, tích hợp xác thực JWT bảo mật, phân quyền theo vai trò (Owner / Member / Assignee / Creator) và giao diện Kanban Board trực quan.
+              Ứng dụng kết nối PostgreSQL qua Prisma ORM, tích hợp xác thực JWT bảo mật, kênh chat nhóm tức thì (WebSockets), bảng Kanban đồng bộ live giữa nhiều người dùng, chuông thông báo In-App và phân quyền 3 cấp (Owner / Admin / Member).
             </p>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">

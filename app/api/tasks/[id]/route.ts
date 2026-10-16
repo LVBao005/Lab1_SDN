@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
+import { createNotification } from '@/lib/notifications';
 
-// PUT /api/tasks/[id] - Update task information
+// PUT /api/tasks/[id] - Update task information with RBAC
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -35,13 +36,30 @@ export async function PUT(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // If task belongs to a team, user must be a team member or team owner
+    // Role-based authorization:
+    // Owner & Admin: can update all tasks in team
+    // Member: can create and manage their own tasks (creator or assignee)
     if (existing.teamId && existing.team) {
       const isOwner = existing.team.ownerId === authUser.id;
-      const isMember = isOwner || existing.team.members.length > 0;
-      if (!isMember) {
+      const callerMembership = existing.team.members[0];
+      const isAdmin = callerMembership?.role === 'ADMIN';
+      const isCreator = existing.creatorId === authUser.id;
+      const isAssignee = existing.assigneeId === authUser.id;
+
+      const isTeamMember = isOwner || Boolean(callerMembership);
+      if (!isTeamMember) {
         return NextResponse.json(
-          { error: 'Forbidden. You must be a member of the team to update this task.' },
+          { error: 'Forbidden. You are not a member of the team.' },
+          { status: 403 },
+        );
+      }
+
+      if (!isOwner && !isAdmin && !isCreator && !isAssignee) {
+        return NextResponse.json(
+          {
+            error:
+              'Forbidden. Members can only update their own tasks (assigned or created by them).',
+          },
           { status: 403 },
         );
       }
@@ -73,6 +91,22 @@ export async function PUT(
       },
     });
 
+    // Notify new assignee if changed
+    if (
+      assigneeId !== undefined &&
+      assigneeId &&
+      assigneeId !== existing.assigneeId &&
+      assigneeId !== authUser.id
+    ) {
+      await createNotification({
+        userId: assigneeId,
+        title: 'Bạn được giao một công việc mới',
+        content: `Bạn được giao công việc "${updatedTask.title}".`,
+        type: 'TASK_ASSIGNED',
+        link: existing.teamId ? `/teams/${existing.teamId}` : undefined,
+      });
+    }
+
     return NextResponse.json(updatedTask, { status: 200 });
   } catch (error) {
     console.error('Error updating task:', error);
@@ -83,7 +117,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/tasks/[id] - Delete a task (Only creator, assignee, or team owner)
+// DELETE /api/tasks/[id] - Delete a task (Owner, Admin, or Creator)
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -103,7 +137,11 @@ export async function DELETE(
       where: { id },
       include: {
         team: {
-          select: { ownerId: true },
+          include: {
+            members: {
+              where: { userId: authUser.id },
+            },
+          },
         },
       },
     });
@@ -113,16 +151,19 @@ export async function DELETE(
     }
 
     // Role-based authorization:
-    // "Only the task creator, the assignee, or the team Owner can delete a task."
-    const isCreator = existing.creatorId === authUser.id;
-    const isAssignee = existing.assigneeId === authUser.id;
+    // Owner: full control - can delete any task
+    // Admin: can manage all tasks - can delete any task
+    // Member: can manage their own tasks - can delete tasks they created
     const isTeamOwner = existing.team?.ownerId === authUser.id;
+    const callerMembership = existing.team?.members[0];
+    const isTeamAdmin = callerMembership?.role === 'ADMIN';
+    const isCreator = existing.creatorId === authUser.id;
 
-    if (!isCreator && !isAssignee && !isTeamOwner) {
+    if (!isTeamOwner && !isTeamAdmin && !isCreator) {
       return NextResponse.json(
         {
           error:
-            'Forbidden. Only the task creator, the assignee, or the team Owner can delete this task.',
+            'Forbidden. Only the task creator, team Admin, or team Owner can delete this task.',
         },
         { status: 403 },
       );

@@ -94,3 +94,35 @@ export interface UpdateTaskPayload {
   teamId?: string | null;
   assigneeId?: string | null;
 }
+
+export type NotificationType =
+  | 'TASK_ASSIGNED'
+  | 'TEAM_INVITED'
+  | 'ROLE_UPDATED'
+  | 'TASK_STATUS_CHANGED'
+  | 'SYSTEM';
+
+export interface MessageItem {
+  id: string;
+  content: string;
+  teamId: string;
+  senderId: string;
+  createdAt: string;
+  sender?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  type: NotificationType;
+  isRead: boolean;
+  link?: string | null;
+  createdAt: string;
+}
+

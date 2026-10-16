@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, use, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -29,9 +29,14 @@ import {
   Check,
   ChevronDown,
   CheckSquare,
+  MessageSquare,
+  Shield,
+  Wifi,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { TaskItem, TaskStatus, TaskPriority, MemberRole } from '@/types';
+import { TeamChat } from '@/components/TeamChat';
+import { getSupabaseClient } from '@/lib/supabase';
 
 export default function TeamDetailPage({
   params,
@@ -47,7 +52,7 @@ export default function TeamDetailPage({
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'members'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'chat' | 'members'>('tasks');
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
 
   // Filters & Search
@@ -86,12 +91,21 @@ export default function TeamDetailPage({
     text: string;
   } | null>(null);
 
+  // 3-Tier Roles & Permissions
   const isOwner = team?.ownerId === user?.id;
+  const currentMember = members.find((m) => m.userId === user?.id);
+  const isAdmin = !isOwner && currentMember?.role === 'ADMIN';
+  const isRegularMember = !isOwner && !isAdmin;
+  const canManageMembers = isOwner || isAdmin;
+  const canEditTeam = isOwner || isAdmin;
+  const canDeleteTeam = isOwner;
+
+  const channelRef = useRef<any>(null);
 
   // Fetch full team data
-  const fetchTeamData = useCallback(async () => {
+  const fetchTeamData = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const res = await fetch(`/api/teams/${teamId}`);
       if (!res.ok) {
         if (res.status === 403 || res.status === 404) {
@@ -110,9 +124,11 @@ export default function TeamDetailPage({
       });
     } catch (err: any) {
       console.error(err);
-      setFeedback({ type: 'error', text: 'Không thể tải thông tin nhóm' });
+      if (!silent) {
+        setFeedback({ type: 'error', text: 'Không thể tải thông tin nhóm' });
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [teamId, router]);
 
@@ -125,6 +141,50 @@ export default function TeamDetailPage({
       }
     }
   }, [user, authLoading, fetchTeamData, router]);
+
+  // Set up Real-time listener for tasks
+  useEffect(() => {
+    if (!teamId || !user) return;
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const channelName = `team:${teamId}`;
+      const channel = supabase.channel(channelName);
+      channelRef.current = channel;
+
+      channel
+        .on('broadcast', { event: 'task-created' }, ({ payload }: { payload: TaskItem }) => {
+          if (!payload) return;
+          setTasks((prev) => {
+            if (prev.some((t) => t.id === payload.id)) return prev;
+            return [payload, ...prev];
+          });
+        })
+        .on('broadcast', { event: 'task-updated' }, ({ payload }: { payload: TaskItem }) => {
+          if (!payload) return;
+          setTasks((prev) => prev.map((t) => (t.id === payload.id ? payload : t)));
+        })
+        .on('broadcast', { event: 'task-deleted' }, ({ payload }: { payload: { id: string } }) => {
+          if (!payload?.id) return;
+          setTasks((prev) => prev.filter((t) => t.id !== payload.id));
+        })
+        .subscribe();
+    }
+
+    // Background silent refresh every 6 seconds to ensure data integrity
+    const syncInterval = setInterval(() => {
+      fetchTeamData(true);
+    }, 6000);
+
+    return () => {
+      clearInterval(syncInterval);
+      if (channelRef.current && supabase) {
+        supabase.removeChannel(channelRef.current);
+      }
+      channelRef.current = null;
+    };
+  }, [teamId, user, fetchTeamData]);
+
 
   // Filtered tasks
   const filteredTasks = useMemo(() => {
@@ -203,6 +263,11 @@ export default function TeamDetailPage({
         if (!res.ok) throw new Error(updated.error || 'Cập nhật thất bại');
 
         setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'task-updated',
+          payload: updated,
+        });
         setFeedback({ type: 'success', text: 'Cập nhật công việc thành công!' });
       } else {
         // Create task
@@ -222,6 +287,11 @@ export default function TeamDetailPage({
         if (!res.ok) throw new Error(created.error || 'Tạo công việc thất bại');
 
         setTasks((prev) => [created, ...prev]);
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'task-created',
+          payload: created,
+        });
         setFeedback({ type: 'success', text: 'Tạo công việc mới thành công!' });
       }
 
@@ -243,6 +313,11 @@ export default function TeamDetailPage({
       if (res.ok) {
         const updated = await res.json();
         setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'task-updated',
+          payload: updated,
+        });
       }
     } catch (err) {
       console.error(err);
@@ -261,10 +336,39 @@ export default function TeamDetailPage({
         return;
       }
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      channelRef.current?.send({
+        type: 'broadcast',
+        event: 'task-deleted',
+        payload: { id: taskId },
+      });
       setFeedback({ type: 'success', text: 'Đã xóa công việc thành công' });
       setTimeout(() => setFeedback(null), 3000);
     } catch (err: any) {
       alert(err.message || 'Lỗi xóa công việc');
+    }
+  };
+
+  // Update Member Role (Owner or Admin)
+  const handleUpdateMemberRole = async (targetUserId: string, newRole: MemberRole) => {
+    try {
+      const res = await fetch(`/api/teams/${teamId}/members/${targetUserId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Không thể thay đổi vai trò');
+        return;
+      }
+
+      setMembers((prev) =>
+        prev.map((m) => (m.userId === targetUserId ? { ...m, role: newRole } : m)),
+      );
+      setFeedback({ type: 'success', text: `Đã đổi vai trò thành ${newRole} thành công!` });
+      setTimeout(() => setFeedback(null), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Lỗi đổi vai trò');
     }
   };
 
@@ -455,9 +559,14 @@ export default function TeamDetailPage({
                 {team.name}
               </h1>
               {isOwner ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
                   <Crown className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Bạn là Owner</span>
+                  <span>Bạn là Chủ nhóm (Owner)</span>
+                </span>
+              ) : isAdmin ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
+                  <Shield className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Bạn là Quản trị viên (Admin)</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-700">
@@ -487,16 +596,19 @@ export default function TeamDetailPage({
             </div>
           </div>
 
-          {/* Owner Actions */}
-          {isOwner && (
-            <div className="flex items-center gap-2 shrink-0">
+          {/* Team Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            {canEditTeam && (
               <button
                 onClick={() => setIsEditTeamModalOpen(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors"
+                title="Sửa thông tin nhóm (Owner & Admin)"
               >
                 <Edit2 className="w-3.5 h-3.5" />
                 <span>Sửa nhóm</span>
               </button>
+            )}
+            {canDeleteTeam && (
               <button
                 onClick={handleDeleteTeam}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
@@ -505,8 +617,8 @@ export default function TeamDetailPage({
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Xóa nhóm</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Tab navigation */}
@@ -521,6 +633,19 @@ export default function TeamDetailPage({
           >
             <CheckSquare className="w-4 h-4" />
             <span>Công việc ({tasks.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`pb-2 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'chat'
+                ? 'border-emerald-600 text-emerald-700'
+                : 'border-transparent text-zinc-500 hover:text-zinc-900'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 text-emerald-600" />
+            <span>Trò chuyện nhóm</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </button>
 
           <button
@@ -659,6 +784,7 @@ export default function TeamDetailPage({
                         task={task}
                         currentUserId={user?.id}
                         isTeamOwner={isOwner}
+                        isTeamAdmin={isAdmin}
                         onEdit={() => handleOpenEditTask(task)}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={handleQuickStatusChange}
@@ -694,6 +820,7 @@ export default function TeamDetailPage({
                         task={task}
                         currentUserId={user?.id}
                         isTeamOwner={isOwner}
+                        isTeamAdmin={isAdmin}
                         onEdit={() => handleOpenEditTask(task)}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={handleQuickStatusChange}
@@ -729,6 +856,7 @@ export default function TeamDetailPage({
                         task={task}
                         currentUserId={user?.id}
                         isTeamOwner={isOwner}
+                        isTeamAdmin={isAdmin}
                         onEdit={() => handleOpenEditTask(task)}
                         onDelete={() => handleDeleteTask(task.id)}
                         onStatusChange={handleQuickStatusChange}
@@ -760,10 +888,10 @@ export default function TeamDetailPage({
                   </thead>
                   <tbody className="divide-y divide-zinc-200">
                     {filteredTasks.map((task) => {
-                      const canDelete =
-                        task.creatorId === user?.id ||
-                        task.assigneeId === user?.id ||
-                        isOwner;
+                      const isCreator = task.creatorId === user?.id;
+                      const isAssignee = task.assigneeId === user?.id;
+                      const canEdit = isCreator || isAssignee || isOwner || isAdmin;
+                      const canDelete = isCreator || isOwner || isAdmin;
 
                       return (
                         <tr key={task.id} className="hover:bg-zinc-50 transition-colors">
@@ -792,13 +920,19 @@ export default function TeamDetailPage({
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="inline-flex items-center gap-1.5">
-                              <button
-                                onClick={() => handleOpenEditTask(task)}
-                                className="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
-                                title="Chỉnh sửa"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
+                              {canEdit ? (
+                                <button
+                                  onClick={() => handleOpenEditTask(task)}
+                                  className="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
+                                  title="Chỉnh sửa công việc"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              ) : (
+                                <span className="p-1 text-zinc-300 cursor-not-allowed" title="Chỉ người tạo/giao hoặc Admin/Owner mới được sửa">
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </span>
+                              )}
                               {canDelete && (
                                 <button
                                   onClick={() => handleDeleteTask(task.id)}
@@ -821,18 +955,25 @@ export default function TeamDetailPage({
         </section>
       )}
 
-      {/* TAB 2: MEMBERS SECTION */}
+      {/* TAB 2: CHAT SECTION */}
+      {activeTab === 'chat' && (
+        <section className="animate-in fade-in duration-200">
+          <TeamChat teamId={teamId} teamName={team.name} />
+        </section>
+      )}
+
+      {/* TAB 3: MEMBERS SECTION */}
       {activeTab === 'members' && (
         <section>
           <div className="flex items-center justify-between pb-4 mb-6 border-b border-zinc-200">
             <div>
               <h2 className="text-lg font-bold text-zinc-900">Danh sách Thành viên Nhóm</h2>
               <p className="text-xs text-zinc-500">
-                Thành viên có thể xem, tạo và cập nhật công việc trong nhóm.
+                Phân quyền theo 3 cấp độ: Owner (toàn quyền), Admin (quản lý việc & thành viên), Member (quản lý việc của mình).
               </p>
             </div>
 
-            {isOwner && (
+            {canManageMembers && (
               <button
                 id="add-member-btn"
                 onClick={() => {
@@ -850,8 +991,14 @@ export default function TeamDetailPage({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {members.map((member) => {
-              const isMemberOwner = member.role === 'OWNER';
-              const canRemove = isOwner && !isMemberOwner && member.userId !== user?.id;
+              const isMemberOwner = member.userId === team.ownerId;
+              const isMemberAdmin = member.role === 'ADMIN';
+              const canChangeRole =
+                (isOwner && !isMemberOwner) ||
+                (isAdmin && !isMemberOwner && !isMemberAdmin);
+              const canRemove =
+                (isOwner && !isMemberOwner && member.userId !== user?.id) ||
+                (isAdmin && !isMemberOwner && !isMemberAdmin && member.userId !== user?.id);
 
               return (
                 <div
@@ -863,16 +1010,23 @@ export default function TeamDetailPage({
                       {member.user?.name ? member.user.name[0] : member.user?.email[0]}
                     </div>
                     <div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 mb-0.5">
                         <p className="text-sm font-bold text-zinc-900">
                           {member.user?.name || 'Chưa đặt tên'}
                         </p>
                         {isMemberOwner ? (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                            <Crown className="w-3 h-3 text-amber-600" />
                             Owner
                           </span>
+                        ) : isMemberAdmin ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                            <Shield className="w-3 h-3 text-blue-600" />
+                            Admin
+                          </span>
                         ) : (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-600">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-600">
+                            <UserCheck className="w-3 h-3 text-zinc-500" />
                             Member
                           </span>
                         )}
@@ -881,17 +1035,37 @@ export default function TeamDetailPage({
                     </div>
                   </div>
 
-                  {canRemove && (
-                    <button
-                      onClick={() =>
-                        handleRemoveMember(member.userId, member.user?.name || member.user?.email)
-                      }
-                      className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title="Xóa thành viên khỏi nhóm"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* Role selector dropdown for Owner or Admin */}
+                    {canChangeRole && (
+                      <select
+                        value={member.role}
+                        onChange={(e) =>
+                          handleUpdateMemberRole(
+                            member.userId,
+                            e.target.value as MemberRole,
+                          )
+                        }
+                        className="text-xs font-semibold px-2 py-1 rounded-lg border border-zinc-200 bg-zinc-50 hover:bg-white text-zinc-700 focus:border-emerald-500 outline-hidden transition-colors cursor-pointer"
+                        title="Đổi vai trò thành viên"
+                      >
+                        <option value="MEMBER">Member</option>
+                        <option value="ADMIN">Admin</option>
+                      </select>
+                    )}
+
+                    {canRemove && (
+                      <button
+                        onClick={() =>
+                          handleRemoveMember(member.userId, member.user?.name || member.user?.email)
+                        }
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Xóa thành viên khỏi nhóm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -1087,7 +1261,7 @@ export default function TeamDetailPage({
                   className="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs font-medium bg-white focus:border-emerald-500 outline-hidden"
                 >
                   <option value="MEMBER">Thành viên (Member)</option>
-                  <option value="OWNER">Chủ nhóm (Owner)</option>
+                  <option value="ADMIN">Quản trị viên (Admin)</option>
                 </select>
               </div>
 
@@ -1183,11 +1357,12 @@ export default function TeamDetailPage({
   );
 }
 
-// Subcomponent: Individual Kanban Task Card
+// Subcomponent: Individual Kanban Task Card with RBAC
 function TaskCard({
   task,
   currentUserId,
   isTeamOwner,
+  isTeamAdmin,
   onEdit,
   onDelete,
   onStatusChange,
@@ -1196,28 +1371,31 @@ function TaskCard({
   task: TaskItem;
   currentUserId?: string;
   isTeamOwner: boolean;
+  isTeamAdmin: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
   getPriorityBadge: (priority: TaskPriority) => React.ReactNode;
 }) {
-  const canDelete =
-    task.creatorId === currentUserId ||
-    task.assigneeId === currentUserId ||
-    isTeamOwner;
+  const isCreator = task.creatorId === currentUserId;
+  const isAssignee = task.assigneeId === currentUserId;
+  const canEdit = isCreator || isAssignee || isTeamOwner || isTeamAdmin;
+  const canDelete = isCreator || isTeamOwner || isTeamAdmin;
 
   return (
     <div className="bg-white rounded-xl border border-zinc-200 p-3.5 shadow-2xs hover:shadow-xs hover:border-zinc-300 transition-all">
       <div className="flex items-start justify-between gap-2 mb-2">
         {getPriorityBadge(task.priority)}
         <div className="flex items-center gap-1">
-          <button
-            onClick={onEdit}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
-            title="Chỉnh sửa"
-          >
-            <Edit2 className="w-3 h-3" />
-          </button>
+          {canEdit && (
+            <button
+              onClick={onEdit}
+              className="p-1 rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
+              title="Chỉnh sửa công việc"
+            >
+              <Edit2 className="w-3 h-3" />
+            </button>
+          )}
           {canDelete && (
             <button
               onClick={onDelete}
@@ -1268,33 +1446,35 @@ function TaskCard({
         )}
       </div>
 
-      {/* Quick Move Status Buttons */}
-      <div className="mt-2.5 pt-2 border-t border-dashed border-zinc-100 flex items-center justify-between gap-1">
-        {task.status !== 'TODO' && (
-          <button
-            onClick={() => onStatusChange(task.id, 'TODO')}
-            className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 hover:bg-zinc-200 font-medium"
-          >
-            ← To Do
-          </button>
-        )}
-        {task.status !== 'IN_PROGRESS' && (
-          <button
-            onClick={() => onStatusChange(task.id, 'IN_PROGRESS')}
-            className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium ml-auto"
-          >
-            → In Progress
-          </button>
-        )}
-        {task.status !== 'DONE' && (
-          <button
-            onClick={() => onStatusChange(task.id, 'DONE')}
-            className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium"
-          >
-            ✓ Done
-          </button>
-        )}
-      </div>
+      {/* Quick Move Status Buttons (enabled if canEdit) */}
+      {canEdit && (
+        <div className="mt-2.5 pt-2 border-t border-dashed border-zinc-100 flex items-center justify-between gap-1">
+          {task.status !== 'TODO' && (
+            <button
+              onClick={() => onStatusChange(task.id, 'TODO')}
+              className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 hover:bg-zinc-200 font-medium"
+            >
+              ← To Do
+            </button>
+          )}
+          {task.status !== 'IN_PROGRESS' && (
+            <button
+              onClick={() => onStatusChange(task.id, 'IN_PROGRESS')}
+              className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium ml-auto"
+            >
+              → In Progress
+            </button>
+          )}
+          {task.status !== 'DONE' && (
+            <button
+              onClick={() => onStatusChange(task.id, 'DONE')}
+              className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium"
+            >
+              ✓ Done
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

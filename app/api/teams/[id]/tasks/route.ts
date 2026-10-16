@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthUser } from '@/lib/auth';
+import { createNotification } from '@/lib/notifications';
 
 // Helper to check if user belongs to the team
 async function isUserTeamMember(teamId: string, userId: string): Promise<boolean> {
@@ -147,6 +148,17 @@ export async function POST(
       },
     });
 
+    // Send in-app notification if assigned to another user
+    if (newTask.assigneeId && newTask.assigneeId !== authUser.id) {
+      await createNotification({
+        userId: newTask.assigneeId,
+        title: 'Bạn được giao một công việc mới',
+        content: `Bạn được giao công việc "${newTask.title}".`,
+        type: 'TASK_ASSIGNED',
+        link: `/teams/${teamId}`,
+      });
+    }
+
     return NextResponse.json(newTask, { status: 201 });
   } catch (error) {
     console.error('Error creating team task:', error);
@@ -156,3 +168,4 @@ export async function POST(
     );
   }
 }
+

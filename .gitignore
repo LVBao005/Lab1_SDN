@@ -46,5 +46,8 @@ next-env.d.ts
 # submission files (tài liệu bài nộp cá nhân)
 QE180206_Ass2.*
 *_Ass2.*
+QE180206_Ass3.*
+*_Ass3.*
 *.docx
 *.doc
+

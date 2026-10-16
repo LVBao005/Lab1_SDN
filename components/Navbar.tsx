@@ -16,6 +16,7 @@ import {
   FolderKanban,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -49,7 +50,7 @@ export function Navbar() {
                   TaskFlow
                 </span>
                 <span className="text-[11px] text-zinc-500 font-medium block leading-none">
-                  Assignment 2 · Teams &amp; RBAC
+                  Assignment 3 &amp; 4 · Real-time Collaboration
                 </span>
               </div>
             </Link>
@@ -122,6 +123,8 @@ export function Navbar() {
               <>
                 {user ? (
                   <div className="flex items-center gap-3 pl-2 border-l border-zinc-200">
+                    <NotificationBell />
+
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-800 text-xs font-bold uppercase">
                         {user.name ? user.name[0] : user.email[0]}

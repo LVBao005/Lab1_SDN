@@ -12,74 +12,77 @@ async function hashPassword(password: string) {
 }
 
 async function main() {
-  console.log('🌱 Đang khởi tạo dữ liệu mẫu cho Assignment 2 (Seeding)...');
+  console.log('🌱 Đang khởi tạo dữ liệu mẫu cho Assignment 3 & 4 (Seeding)...');
 
   const defaultPasswordHash = await hashPassword('Password123!');
 
-  // 1. Tạo Test Account cho Grader (Chấm điểm)
+  // 1. Tạo Test Account 1 cho Grader (Chấm điểm - Owner)
   const graderUser = await prisma.user.upsert({
     where: { email: 'grader@assignment2.edu.vn' },
     update: {
       password: defaultPasswordHash,
-      name: 'Grader Tester',
+      name: 'Grader Tester (Owner)',
     },
     create: {
-      name: 'Grader Tester',
+      name: 'Grader Tester (Owner)',
       email: 'grader@assignment2.edu.vn',
       password: defaultPasswordHash,
     },
   });
   console.log('✅ User Grader đã tạo:', graderUser.name, `(${graderUser.email})`);
 
-  // 2. Tạo User sinh viên (Student)
-  const studentEmail = process.env.STUDENT_EMAIL || 'student@example.com';
-  const studentUser = await prisma.user.upsert({
-    where: { email: studentEmail },
-    update: {
-      password: defaultPasswordHash,
-      name: 'Lê Văn Bảo',
-    },
-    create: {
-      name: 'Lê Văn Bảo',
-      email: studentEmail,
-      password: defaultPasswordHash,
-    },
-  });
-  console.log('✅ User Sinh viên đã tạo:', studentUser.name, `(${studentUser.email})`);
-
-  // 3. Tạo User thành viên mẫu Alex Developer
+  // 2. Tạo Test Account 2 (Admin / Collaborator cùng team với Grader)
   const memberUser = await prisma.user.upsert({
     where: { email: 'member@assignment2.edu.vn' },
     update: {
       password: defaultPasswordHash,
-      name: 'Alex Developer',
+      name: 'Alex Developer (Admin)',
     },
     create: {
-      name: 'Alex Developer',
+      name: 'Alex Developer (Admin)',
       email: 'member@assignment2.edu.vn',
       password: defaultPasswordHash,
     },
   });
   console.log('✅ User Member đã tạo:', memberUser.name, `(${memberUser.email})`);
 
+  // 3. Tạo User sinh viên (Student / Regular Member)
+  const studentEmail = process.env.STUDENT_EMAIL || 'student@example.com';
+  const studentUser = await prisma.user.upsert({
+    where: { email: studentEmail },
+    update: {
+      password: defaultPasswordHash,
+      name: 'Lê Văn Bảo (Member)',
+    },
+    create: {
+      name: 'Lê Văn Bảo (Member)',
+      email: studentEmail,
+      password: defaultPasswordHash,
+    },
+  });
+  console.log('✅ User Sinh viên đã tạo:', studentUser.name, `(${studentUser.email})`);
+
   // 4. Tạo Team mẫu 1: Core Engineering
   const team1 = await prisma.team.upsert({
     where: { id: 'team_core_eng' },
     update: {
       name: 'Core Engineering',
-      description: 'Nhóm kỹ thuật phát triển sản phẩm Task & Team Management',
+      description: 'Nhóm kỹ thuật phát triển sản phẩm Task & Team Management với Real-time Chat và Kanban',
       ownerId: graderUser.id,
     },
     create: {
       id: 'team_core_eng',
       name: 'Core Engineering',
-      description: 'Nhóm kỹ thuật phát triển sản phẩm Task & Team Management',
+      description: 'Nhóm kỹ thuật phát triển sản phẩm Task & Team Management với Real-time Chat và Kanban',
       ownerId: graderUser.id,
     },
   });
   console.log('✅ Team 1 đã tạo:', team1.name);
 
-  // 5. Gán thành viên cho Team 1
+  // 5. Gán thành viên cho Team 1 với 3 vai trò rõ rệt:
+  // - Grader: OWNER
+  // - Alex: ADMIN
+  // - Bảo: MEMBER
   await prisma.teamMember.upsert({
     where: { teamId_userId: { teamId: team1.id, userId: graderUser.id } },
     update: { role: 'OWNER' },
@@ -88,8 +91,8 @@ async function main() {
 
   await prisma.teamMember.upsert({
     where: { teamId_userId: { teamId: team1.id, userId: memberUser.id } },
-    update: { role: 'MEMBER' },
-    create: { teamId: team1.id, userId: memberUser.id, role: 'MEMBER' },
+    update: { role: 'ADMIN' },
+    create: { teamId: team1.id, userId: memberUser.id, role: 'ADMIN' },
   });
 
   await prisma.teamMember.upsert({
@@ -127,12 +130,12 @@ async function main() {
     create: { teamId: team2.id, userId: memberUser.id, role: 'MEMBER' },
   });
 
-  // 7. Tạo danh sách công việc mẫu có phân công và creator
+  // 7. Tạo danh sách công việc mẫu
   const sampleTasks = [
     {
       id: 'task_001',
-      title: 'Xây dựng RESTful API cho Teams và Tasks',
-      description: 'Triển khai đầy đủ các endpoint CRUD với kiểm tra quyền Owner và Member.',
+      title: 'Xây dựng tính năng Real-time Team Chat',
+      description: 'Hỗ trợ nhắn tin tức thời qua WebSockets / Supabase Realtime kèm lịch sử lưu trong Postgres.',
       status: 'DONE' as const,
       priority: 'HIGH' as const,
       dueDate: new Date(Date.now() + 86400000 * 2),
@@ -142,10 +145,10 @@ async function main() {
     },
     {
       id: 'task_002',
-      title: 'Thiết kế giao diện Kanban Board chuyển đổi linh hoạt',
-      description: 'Hỗ trợ kéo hoặc đổi trạng thái công việc trực quan giữa To Do, In Progress, Done.',
+      title: 'Live Task Board Synchronization',
+      description: 'Khi một thành viên tạo, sửa hoặc xóa task, các phiên khác trên Kanban board tự động cập nhật ngay lập tức.',
       status: 'IN_PROGRESS' as const,
-      priority: 'MEDIUM' as const,
+      priority: 'HIGH' as const,
       dueDate: new Date(Date.now() + 86400000 * 4),
       teamId: team1.id,
       assigneeId: memberUser.id,
@@ -153,10 +156,10 @@ async function main() {
     },
     {
       id: 'task_003',
-      title: 'Kiểm thử phân quyền xóa Task (RBAC)',
-      description: 'Đảm bảo chỉ Task Creator, Assignee hoặc Team Owner mới có quyền xóa task.',
-      status: 'TODO' as const,
-      priority: 'HIGH' as const,
+      title: 'Hệ thống thông báo In-App Notification Center',
+      description: 'Hiển thị chuông thông báo kèm số lượng chưa đọc khi được giao việc hoặc thêm vào nhóm.',
+      status: 'DONE' as const,
+      priority: 'MEDIUM' as const,
       dueDate: new Date(Date.now() + 86400000 * 5),
       teamId: team1.id,
       assigneeId: studentUser.id,
@@ -164,34 +167,12 @@ async function main() {
     },
     {
       id: 'task_004',
-      title: 'Hoàn thiện tài liệu nộp bài Assignment 2',
-      description: 'Điền đầy đủ thông tin vào tài liệu nộp bài và kiểm tra link Vercel hoạt động.',
+      title: 'Kiểm thử phân quyền 3 cấp (Owner, Admin, Member)',
+      description: 'Owner có toàn quyền xóa team, Admin quản lý thành viên & task, Member chỉ quản lý task của mình.',
       status: 'TODO' as const,
-      priority: 'LOW' as const,
+      priority: 'HIGH' as const,
       dueDate: new Date(Date.now() + 86400000 * 7),
       teamId: team1.id,
-      assigneeId: graderUser.id,
-      creatorId: graderUser.id,
-    },
-    {
-      id: 'task_005',
-      title: 'Thiết kế UI Mockup cho Team Detail và Member List',
-      description: 'Lựa chọn bảng màu tối ưu và icon trực quan cho danh sách thành viên.',
-      status: 'DONE' as const,
-      priority: 'MEDIUM' as const,
-      dueDate: new Date(Date.now() + 86400000 * 3),
-      teamId: team2.id,
-      assigneeId: memberUser.id,
-      creatorId: graderUser.id,
-    },
-    {
-      id: 'task_006',
-      title: 'Kiểm tra độ tương thích trên thiết bị di động (Responsive)',
-      description: 'Tối ưu hóa layout Drawer, Table và Kanban cho màn hình nhỏ.',
-      status: 'IN_PROGRESS' as const,
-      priority: 'LOW' as const,
-      dueDate: new Date(Date.now() + 86400000 * 6),
-      teamId: team2.id,
       assigneeId: graderUser.id,
       creatorId: graderUser.id,
     },
@@ -213,8 +194,85 @@ async function main() {
       create: task,
     });
   }
-
   console.log(`✅ Đã tạo thành công ${sampleTasks.length} công việc mẫu có phân quyền!`);
+
+  // 8. Tạo tin nhắn mẫu cho kênh chat Team 1
+  const sampleMessages = [
+    {
+      id: 'msg_001',
+      teamId: team1.id,
+      senderId: graderUser.id,
+      content: 'Chào mừng cả đội đến với kênh trò chuyện Real-time của nhóm Core Engineering! 👋',
+      createdAt: new Date(Date.now() - 3600000 * 3),
+    },
+    {
+      id: 'msg_002',
+      teamId: team1.id,
+      senderId: memberUser.id,
+      content: 'Chào sếp! Tôi vừa cập nhật tiến độ công việc trên bảng Kanban live.',
+      createdAt: new Date(Date.now() - 3600000 * 2),
+    },
+    {
+      id: 'msg_003',
+      teamId: team1.id,
+      senderId: studentUser.id,
+      content: 'Real-time WebSocket đang hoạt động rất mượt mà trên Vercel!',
+      createdAt: new Date(Date.now() - 1800000),
+    },
+  ];
+
+  for (const msg of sampleMessages) {
+    await prisma.message.upsert({
+      where: { id: msg.id },
+      update: { content: msg.content },
+      create: msg,
+    });
+  }
+  console.log(`✅ Đã tạo ${sampleMessages.length} tin nhắn mẫu trong Team Chat!`);
+
+  // 9. Tạo thông báo mẫu cho Grader và Member
+  const sampleNotifications = [
+    {
+      id: 'notif_001',
+      userId: graderUser.id,
+      title: 'Chào mừng bạn đến với TaskFlow',
+      content: 'Hệ thống Real-time Collaboration & In-App Notification đã sẵn sàng.',
+      type: 'SYSTEM' as const,
+      isRead: false,
+      link: `/teams/${team1.id}`,
+      createdAt: new Date(Date.now() - 7200000),
+    },
+    {
+      id: 'notif_002',
+      userId: memberUser.id,
+      title: 'Bạn được giao một công việc mới',
+      content: 'Bạn được giao công việc "Live Task Board Synchronization".',
+      type: 'TASK_ASSIGNED' as const,
+      isRead: false,
+      link: `/teams/${team1.id}`,
+      createdAt: new Date(Date.now() - 3600000),
+    },
+    {
+      id: 'notif_003',
+      userId: memberUser.id,
+      title: 'Vai trò trong nhóm đã thay đổi',
+      content: 'Bạn đã được chỉ định vai trò Quản trị viên (Admin) trong nhóm "Core Engineering".',
+      type: 'ROLE_UPDATED' as const,
+      isRead: true,
+      link: `/teams/${team1.id}`,
+      createdAt: new Date(Date.now() - 10800000),
+    },
+  ];
+
+  for (const notif of sampleNotifications) {
+    await prisma.notification.upsert({
+      where: { id: notif.id },
+      update: { title: notif.title, content: notif.content },
+      create: notif,
+    });
+  }
+  console.log(`✅ Đã tạo ${sampleNotifications.length} thông báo mẫu!`);
+
   console.log('🚀 Quá trình Seeding hoàn tất thành công!');
 }
 

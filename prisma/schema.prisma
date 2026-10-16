@@ -26,6 +26,14 @@ enum MemberRole {
   MEMBER
 }
 
+enum NotificationType {
+  TASK_ASSIGNED
+  TEAM_INVITED
+  ROLE_UPDATED
+  TASK_STATUS_CHANGED
+  SYSTEM
+}
+
 model User {
   id        String       @id @default(cuid())
   name      String?
@@ -34,10 +42,12 @@ model User {
   createdAt DateTime     @default(now())
 
   // Relations
-  ownedTeams   Team[]       @relation("TeamOwner")
-  memberships  TeamMember[]
-  tasks        Task[]       @relation("AssignedTasks")
-  createdTasks Task[]       @relation("CreatedTasks")
+  ownedTeams    Team[]         @relation("TeamOwner")
+  memberships   TeamMember[]
+  tasks         Task[]         @relation("AssignedTasks")
+  createdTasks  Task[]         @relation("CreatedTasks")
+  messages      Message[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -50,9 +60,10 @@ model Team {
   createdAt   DateTime     @default(now())
 
   // Relations
-  owner   User         @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members TeamMember[]
-  tasks   Task[]
+  owner    User         @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members  TeamMember[]
+  tasks    Task[]
+  messages Message[]
 
   @@map("teams")
 }
@@ -90,4 +101,36 @@ model Task {
   creator  User? @relation("CreatedTasks", fields: [creatorId], references: [id], onDelete: SetNull)
 
   @@map("tasks")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  teamId    String
+  senderId  String
+  createdAt DateTime @default(now())
+
+  // Relations
+  team   Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, createdAt])
+  @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  content   String
+  type      NotificationType @default(TASK_ASSIGNED)
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
 }
